@@ -1,0 +1,210 @@
+<!-- chatbotapp/templates/chatbotapp/index.html -->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatbot Gestion de Projet</title>
+    <style>
+        /* Votre CSS existant */
+        :root {
+            --primary-color: #4361ee;
+            --secondary-color: #3a0ca3;
+            --light-color: #f8f9fa;
+            --dark-color: #212529;
+            --success-color: #4cc9f0;
+            --warning-color: #f72585;
+            --border-radius: 12px;
+            --box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .chat-container {
+            width: 100%;
+            max-width: 800px;
+            height: 80vh;
+            background-color: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .chat-header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .chatbox {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            background-color: #f8fafc;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: var(--border-radius);
+            line-height: 1.5;
+        }
+
+        .user-message {
+            align-self: flex-end;
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .bot-message {
+            align-self: flex-start;
+            background-color: white;
+            color: var(--dark-color);
+            border: 1px solid #e2e8f0;
+        }
+
+        .input-container {
+            display: flex;
+            padding: 20px;
+            background-color: white;
+            border-top: 1px solid #e2e8f0;
+            gap: 10px;
+        }
+
+        .message-input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid #cbd5e1;
+            border-radius: 24px;
+            outline: none;
+            font-size: 1rem;
+        }
+
+        .send-button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 48px;
+            height: 48px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h1>Assistant de Gestion de Projet</h1>
+        </div>
+
+        <div class="chatbox" id="chatbox">
+            <div class="message bot-message">
+                Bonjour ! Je suis votre assistant en gestion de projet. Posez-moi vos questions sur la gestion de projet, le chef de projet, les processus, etc.
+            </div>
+        </div>
+
+        <div class="input-container">
+            <input type="text" class="message-input" id="messageInput" placeholder="Tapez votre question ici..." autocomplete="off">
+            <button class="send-button" id="sendButton">Envoyer</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const chatbox = document.getElementById('chatbox');
+            const messageInput = document.getElementById('messageInput');
+            const sendButton = document.getElementById('sendButton');
+
+            async function sendMessage() {
+                const message = messageInput.value.trim();
+                if (!message) return;
+
+                // Ajouter le message de l'utilisateur
+                addMessage(message, true);
+                messageInput.value = '';
+
+                try {
+                    // Envoyer la requête POST à l'API Django
+                    const response = await fetch('/get_response/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        body: JSON.stringify({ message: message })
+                    });
+
+                    const data = await response.json();
+
+                    // Afficher la réponse du chatbot
+                    addMessage(data.response);
+
+                } catch (error) {
+                    console.error('Erreur:', error);
+                    addMessage('Erreur de connexion au serveur', false, true);
+                }
+            }
+
+            function addMessage(content, isUser = false, isError = false) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = isError ? 'message error-message' :
+                                        isUser ? 'message user-message' : 'message bot-message';
+                messageDiv.textContent = content;
+                chatbox.appendChild(messageDiv);
+                chatbox.scrollTop = chatbox.scrollHeight;
+            }
+
+            // Événements
+            sendButton.addEventListener('click', sendMessage);
+            messageInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    sendMessage();
+                }
+            });
+
+            // Fonction utilitaire pour CSRF token
+            function getCookie(name) {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        const cookie = cookies[i].trim();
+                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            }
+        });
+    </script>
+</body>
+</html>
